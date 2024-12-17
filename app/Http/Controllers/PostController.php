@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
@@ -39,20 +41,43 @@ class PostController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'user_id' => 'required|exists:users,id',
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'content' => 'required|string',
+                'user_id' => 'required|exists:users,id',
+            ]);
 
+            $post = Post::create($validated);
 
-        $post = Post::create($validated);
+            return response()->json([
+                'message' => 'Post created successfully',
+                'post' => $post,
+            ], 201);
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
 
-        return response()->json([
-            'message' => 'Post created successfully',
-            'post' => $post,
-        ], 201);
+            $customErrors = [];
+
+            if (isset($errors['user_id'])) {
+                $customErrors['user_id'] = "User ID not found.";
+            }
+
+            if (isset($errors['title'])) {
+                $customErrors['title'] = "Invalid or missing title.";
+            }
+
+            if (isset($errors['content'])) {
+                $customErrors['content'] = "Invalid or missing content.";
+            }
+
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $customErrors,
+            ], 422);
+        }
     }
+
 
     public function update(Request $request, $id)
     {
